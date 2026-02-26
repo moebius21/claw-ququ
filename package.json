@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:reset": "node scripts/reset-db.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^12.6.2",

@@ -17,6 +17,10 @@
 /.next/
 /out/
 
+# local data
+/.data/*.db
+!.data/.gitkeep
+
 # production
 /build
 
