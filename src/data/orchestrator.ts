@@ -11,6 +11,7 @@ export type RawPost = {
   title: string;
   content: string;
   fetchedAt: string;
+  status: "new" | "accepted" | "ignored" | "review_queued";
 };
 
 export type Claim = {
@@ -63,7 +64,8 @@ CREATE TABLE IF NOT EXISTS raw_posts (
   source_url TEXT NOT NULL,
   title TEXT NOT NULL,
   content TEXT NOT NULL,
-  fetched_at TEXT NOT NULL
+  fetched_at TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'new'
 );
 
 CREATE TABLE IF NOT EXISTS jobs (
@@ -89,17 +91,22 @@ CREATE TABLE IF NOT EXISTS reports (
 );
 `);
 
+const rawColumns = db.prepare("PRAGMA table_info(raw_posts)").all() as Array<{ name: string }>;
+if (!rawColumns.some((c) => c.name === "status")) {
+  db.exec("ALTER TABLE raw_posts ADD COLUMN status TEXT NOT NULL DEFAULT 'new'");
+}
+
 const reportCount = (db.prepare("SELECT COUNT(*) as c FROM reports").get() as { c: number }).c;
 if (reportCount === 0) {
   const insertRaw = db.prepare(
-    "INSERT OR IGNORE INTO raw_posts (id, source, source_url, title, content, fetched_at) VALUES (?, ?, ?, ?, ?, ?)",
+    "INSERT OR IGNORE INTO raw_posts (id, source, source_url, title, content, fetched_at, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
   );
   const insertReport = db.prepare(
     "INSERT INTO reports (id, post_id, status, trust_score, summary, risks_json, versions_json, claims_json, evidence_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
   );
 
   for (const p of posts) {
-    insertRaw.run(`raw-${p.id}`, p.source, p.sourceUrl, p.title, p.content, p.createdAt);
+    insertRaw.run(`raw-${p.id}`, p.source, p.sourceUrl, p.title, p.content, p.createdAt, "accepted");
 
     const claims: Claim[] = [
       { id: `claim-${p.id}-1`, postId: p.id, text: p.summary, severity: "medium" },
@@ -144,7 +151,7 @@ const getPostOrThrow = (postId: string) => {
 export const listRawPosts = (): RawPost[] =>
   db
     .prepare(
-      "SELECT id, source, source_url as sourceUrl, title, content, fetched_at as fetchedAt FROM raw_posts ORDER BY fetched_at DESC",
+      "SELECT id, source, source_url as sourceUrl, title, content, fetched_at as fetchedAt, status FROM raw_posts ORDER BY fetched_at DESC",
     )
     .all() as RawPost[];
 
@@ -349,11 +356,35 @@ export const ingestRawPost = (input: {
     title: input.title,
     content: input.content,
     fetchedAt: now(),
+    status: "new",
   };
 
   db.prepare(
-    "INSERT INTO raw_posts (id, source, source_url, title, content, fetched_at) VALUES (?, ?, ?, ?, ?, ?)",
-  ).run(raw.id, raw.source, raw.sourceUrl, raw.title, raw.content, raw.fetchedAt);
+    "INSERT INTO raw_posts (id, source, source_url, title, content, fetched_at, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+  ).run(raw.id, raw.source, raw.sourceUrl, raw.title, raw.content, raw.fetchedAt, raw.status);
 
   return raw;
+};
+
+export const setRawPostStatus = (
+  rawId: string,
+  action: "accept" | "ignore" | "queue_review",
+) => {
+  const targetStatus: RawPost["status"] =
+    action === "accept" ? "accepted" : action === "ignore" ? "ignored" : "review_queued";
+
+  const found = db
+    .prepare(
+      "SELECT id, source, source_url as sourceUrl, title, content, fetched_at as fetchedAt, status FROM raw_posts WHERE id = ?",
+    )
+    .get(rawId) as RawPost | undefined;
+
+  if (!found) throw new Error("raw post not found");
+
+  db.prepare("UPDATE raw_posts SET status = ? WHERE id = ?").run(targetStatus, rawId);
+
+  return {
+    ...found,
+    status: targetStatus,
+  } satisfies RawPost;
 };
