@@ -43,6 +43,22 @@ export default async function OpsPage({
         ? jobs.filter((j) => j.status === "failed")
         : jobs;
 
+  const isToday = (iso: string | null | undefined) => {
+    if (!iso) return false;
+    const d = new Date(iso);
+    const now = new Date();
+    return (
+      d.getFullYear() === now.getFullYear() &&
+      d.getMonth() === now.getMonth() &&
+      d.getDate() === now.getDate()
+    );
+  };
+
+  const todayImported = raws.filter((r) => isToday(r.fetchedAt)).length;
+  const todayDrafted = drafts.filter((d) => isToday(d.createdAt)).length;
+  const todayPublished = published.filter((p) => isToday(p.createdAt)).length;
+  const todayReviewed = jobs.filter((j) => j.status === "done" && isToday(j.updatedAt)).length;
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <main className="mx-auto w-full max-w-5xl px-6 py-12">
@@ -52,6 +68,28 @@ export default async function OpsPage({
             返回首页
           </Link>
         </div>
+
+        <section className="mt-4 rounded-xl border border-white/10 bg-white/5 p-4">
+          <h2 className="text-sm font-medium text-white">今日处理进度</h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-4">
+            <div className="rounded-lg border border-white/10 bg-black/20 px-3 py-2">
+              <div className="text-[11px] text-zinc-400">今日导入</div>
+              <div className="mt-1 text-lg font-semibold text-zinc-100">{todayImported}</div>
+            </div>
+            <div className="rounded-lg border border-white/10 bg-black/20 px-3 py-2">
+              <div className="text-[11px] text-zinc-400">今日生成草稿</div>
+              <div className="mt-1 text-lg font-semibold text-zinc-100">{todayDrafted}</div>
+            </div>
+            <div className="rounded-lg border border-white/10 bg-black/20 px-3 py-2">
+              <div className="text-[11px] text-zinc-400">今日发布</div>
+              <div className="mt-1 text-lg font-semibold text-zinc-100">{todayPublished}</div>
+            </div>
+            <div className="rounded-lg border border-white/10 bg-black/20 px-3 py-2">
+              <div className="text-[11px] text-zinc-400">今日复核完成</div>
+              <div className="mt-1 text-lg font-semibold text-zinc-100">{todayReviewed}</div>
+            </div>
+          </div>
+        </section>
 
         <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
           <Link href="/ops" className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-zinc-200">
