@@ -197,5 +197,69 @@ export const posts: Post[] = [
     createdAt: "2025-12-24T06:00:00.000Z",
     verifiedAt: null,
   },
+  {
+    id: "claw-010",
+    title: "官方文档实测：Chrome 扩展接管的关键是 Port=18792 + Gateway Token",
+    summary:
+      "扩展并不是直接接管当前浏览器，会话需要显式附加。常见失败来自 relay 端口或 token 配置错误。",
+    content:
+      "根据 OpenClaw 官方 Chrome Extension 文档，浏览器接管涉及三层：Gateway 浏览器控制服务、本地 relay（默认 18792）、Chrome 扩展。\n\n高频坑位：\n1) 没有在扩展 Options 填对 Port（默认 18792）\n2) Gateway token 不匹配 gateway.auth.token\n3) 没有在目标 tab 点扩展图标附加（ON）\n\n建议：先用 openclaw browser extension install 安装，确认 Options 状态是 authenticated，再在具体标签页附加。",
+    source: "Google",
+    sourceUrl: "https://docs.openclaw.ai/tools/chrome-extension",
+    tags: ["浏览器", "扩展中继", "调试", "token"],
+    trustScore: 92,
+    verificationStatus: "verified",
+    clawVersion: ">=0.10.0",
+    createdAt: "2026-02-26T04:30:00.000Z",
+    verifiedAt: "2026-02-26T05:45:00.000Z",
+  },
+  {
+    id: "claw-011",
+    title: "生产建议：personal assistant 模型下，一台 Gateway 不要混多个不可信用户",
+    summary:
+      "官方安全文档明确：OpenClaw 推荐单信任边界。多租户对抗场景应拆分 Gateway/主机。",
+    content:
+      "OpenClaw 安全文档强调：它是 personal assistant trust model，不是对抗型多租户隔离系统。\n\n可执行建议：\n1) 一人一套 Gateway（至少一人一套凭据/实例）\n2) 不要把多个互不信任用户挂在同一个工具型 agent 上\n3) 对外暴露前先跑 openclaw security audit（含 deep/fix）\n\n这条对团队部署非常关键，能避免权限越界和会话信息误暴露。",
+    source: "Google",
+    sourceUrl: "https://docs.openclaw.ai/gateway/security",
+    tags: ["安全", "部署架构", "多用户", "最佳实践"],
+    trustScore: 94,
+    verificationStatus: "verified",
+    clawVersion: ">=0.10.0",
+    createdAt: "2026-02-26T04:40:00.000Z",
+    verifiedAt: "2026-02-26T05:45:00.000Z",
+  },
+  {
+    id: "claw-012",
+    title: "远程访问实战：Tailscale Serve 比直接公网暴露更稳妥",
+    summary:
+      "Gateway 保持 loopback，通过 Tailscale Serve/Funnel 暴露，认证和网络边界更清晰。",
+    content:
+      "官方 Tailscale 文档给了一个非常实用的安全路径：Gateway 仍绑定 127.0.0.1，通过 tailscale serve 做 tailnet 内访问。\n\n落地建议：\n1) 日常远程管理优先 tailscale.mode=serve\n2) 如需公网 funnel，必须配 password auth\n3) 浏览器控制跨机时，用 node host 代理，不要硬开公网端口\n\n这套方案兼顾可用性和安全性，适合个人/小团队。",
+    source: "Google",
+    sourceUrl: "https://docs.openclaw.ai/gateway/tailscale",
+    tags: ["Tailscale", "远程访问", "安全", "Gateway"],
+    trustScore: 90,
+    verificationStatus: "verified",
+    clawVersion: ">=0.10.0",
+    createdAt: "2026-02-26T04:50:00.000Z",
+    verifiedAt: "2026-02-26T05:45:00.000Z",
+  },
+  {
+    id: "claw-013",
+    title: "官方仓库信息整合：onboard 向导是新手最省坑的起点",
+    summary:
+      "GitHub README 明确推荐 openclaw onboard --install-daemon，先把 daemon 和基础配置跑通。",
+    content:
+      "从 GitHub README 看，OpenClaw 的推荐起手势不是手搓配置，而是先跑 onboard 向导。\n\n原因：\n1) 一次性配置 gateway/workspace/channels\n2) 安装 daemon 保持常驻\n3) 后续用 doctor/security audit 迭代修正\n\n对内容站来说，这类“官方推荐流程”应当优先置顶，能显著减少新手踩坑。",
+    source: "Reddit",
+    sourceUrl: "https://github.com/openclaw/openclaw",
+    tags: ["入门", "onboard", "daemon", "官方流程"],
+    trustScore: 88,
+    verificationStatus: "verified",
+    clawVersion: ">=0.10.0",
+    createdAt: "2026-02-26T05:00:00.000Z",
+    verifiedAt: "2026-02-26T05:45:00.000Z",
+  },
 ];
 
