@@ -19,6 +19,7 @@
 
 # local data
 /.data/*.db
+/.data/crawl-results/
 !.data/.gitkeep
 
 # production
