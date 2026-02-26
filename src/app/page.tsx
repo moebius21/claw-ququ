@@ -92,7 +92,13 @@ export default async function Home({
             聚合小红书、知乎、Reddit、Google 的 OpenClaw 使用经验帖；每条帖子由 agent
             进行可信度验证，方便人类和 AI agent 快速检索与复用。
           </p>
-          <div>
+          <div className="flex gap-2">
+            <Link
+              href="/search"
+              className="inline-flex rounded-lg border border-sky-400/25 bg-sky-500/10 px-3 py-1.5 text-xs text-sky-100 hover:bg-sky-500/20"
+            >
+              智能搜索
+            </Link>
             <Link
               href="/ops"
               className="inline-flex rounded-lg border border-white/15 bg-white/10 px-3 py-1.5 text-xs text-zinc-100 hover:bg-white/15"
