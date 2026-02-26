@@ -22,6 +22,8 @@ type SearchResponse = {
     jobId: string;
     title: string;
     sourceUrl: string;
+    sourceType: "Reddit" | "Docs" | "GitHub" | "Web";
+    importedAt: string;
   }>;
 };
 
@@ -113,6 +115,9 @@ export default function SearchPage() {
                   result.imported.map((item) => (
                     <div key={item.jobId} className="rounded-lg border border-white/10 bg-black/20 px-3 py-2">
                       <div className="text-zinc-200">{item.title}</div>
+                      <div className="mt-1 text-xs text-zinc-500">
+                        来源: {item.sourceType} · 导入: {new Date(item.importedAt).toLocaleString("zh-CN")}
+                      </div>
                       <div className="mt-1 text-xs text-zinc-500">published: {item.publishedId} · job: {item.jobId}</div>
                       <a className="mt-1 block text-xs text-sky-200 hover:underline" href={item.sourceUrl} target="_blank" rel="noreferrer">
                         查看来源

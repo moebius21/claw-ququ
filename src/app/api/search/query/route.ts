@@ -164,7 +164,15 @@ export async function POST(request: Request) {
     })
     .slice(0, 10);
 
-  const imported: Array<{ rawId: string; publishedId: string; jobId: string; title: string; sourceUrl: string }> = [];
+  const imported: Array<{
+    rawId: string;
+    publishedId: string;
+    jobId: string;
+    title: string;
+    sourceUrl: string;
+    sourceType: "Reddit" | "Docs" | "GitHub" | "Web";
+    importedAt: string;
+  }> = [];
   for (const item of external) {
     const raw = ingestRawPost({
       source: item.url.includes("reddit.com") ? "Reddit" : "Google",
@@ -184,12 +192,22 @@ export async function POST(request: Request) {
       // keep queued/failed state
     }
 
+    const sourceType = item.url.includes("reddit.com")
+      ? "Reddit"
+      : item.url.includes("docs.openclaw.ai")
+        ? "Docs"
+        : item.url.includes("github.com/openclaw/openclaw")
+          ? "GitHub"
+          : "Web";
+
     imported.push({
       rawId: raw.id,
       publishedId: draftResult.publishedId,
       jobId: queued.job.id,
       title: item.title,
       sourceUrl: item.url,
+      sourceType,
+      importedAt: raw.fetchedAt,
     });
   }
 
