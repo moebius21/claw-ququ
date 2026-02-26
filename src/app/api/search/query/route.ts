@@ -25,13 +25,27 @@ type LocalResult = {
 
 const norm = (v: string) => v.toLowerCase().trim();
 
+async function safeFetch(url: string, init?: RequestInit, timeoutMs = 5000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function fetchReddit(query: string) {
   try {
     const url = `https://www.reddit.com/search.json?q=${encodeURIComponent(`openclaw ${query}`)}&sort=relevance&t=year&limit=5`;
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 clawququ-bot" },
-      cache: "no-store",
-    });
+    const res = await safeFetch(
+      url,
+      {
+        headers: { "User-Agent": "Mozilla/5.0 clawququ-bot" },
+        cache: "no-store",
+      },
+      4500,
+    );
     if (!res.ok) return [] as Array<{ title: string; url: string; content: string }>;
     const data = (await res.json()) as {
       data?: { children?: Array<{ data?: { title?: string; selftext?: string; permalink?: string } }> };
@@ -54,13 +68,17 @@ async function fetchReddit(query: string) {
 async function fetchGithubIssues(query: string) {
   const url = `https://api.github.com/search/issues?q=${encodeURIComponent(`${query} repo:openclaw/openclaw is:issue`)}&per_page=5&sort=updated&order=desc`;
   try {
-    const res = await fetch(url, {
-      headers: {
-        Accept: "application/vnd.github+json",
-        "User-Agent": "clawququ-search-bot",
+    const res = await safeFetch(
+      url,
+      {
+        headers: {
+          Accept: "application/vnd.github+json",
+          "User-Agent": "clawququ-search-bot",
+        },
+        cache: "no-store",
       },
-      cache: "no-store",
-    });
+      4500,
+    );
     if (!res.ok) return [] as Array<{ title: string; url: string; content: string }>;
     const data = (await res.json()) as {
       items?: Array<{ title?: string; html_url?: string; body?: string }>;
@@ -87,7 +105,7 @@ async function fetchDocs(query: string) {
   const items: Array<{ title: string; url: string; content: string }> = [];
   for (const url of seeds) {
     try {
-      const r = await fetch(url, { cache: "no-store" });
+      const r = await safeFetch(url, { cache: "no-store" }, 4000);
       if (!r.ok) continue;
       const text = await r.text();
       const plain = text.slice(0, 4000);
