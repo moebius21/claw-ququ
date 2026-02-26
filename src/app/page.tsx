@@ -59,9 +59,15 @@ export default async function Home({
         if (!h.includes(normalize(q))) return false;
       }
       return true;
-    });
+    })
+    .map((post) => ({ ...post, contentOrigin: "published" as const }));
 
-  const filtered = [...filteredPublished, ...filteredStatic].sort((a, b) =>
+  const filteredSeed = filteredStatic.map((post) => ({
+    ...post,
+    contentOrigin: "seed" as const,
+  }));
+
+  const filtered = [...filteredPublished, ...filteredSeed].sort((a, b) =>
     a.createdAt < b.createdAt ? 1 : -1,
   );
 
@@ -197,6 +203,9 @@ export default async function Home({
                   <span className="inline-flex items-center rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-xs text-zinc-300">
                     适用 {post.clawVersion}
                   </span>
+                  <span className="inline-flex items-center rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-xs text-zinc-300">
+                    来源类型 {post.contentOrigin === "published" ? "发布" : "种子"}
+                  </span>
                 </div>
 
                 <div className="flex items-start justify-between gap-4">
@@ -229,13 +238,21 @@ export default async function Home({
                   ) : null}
                 </div>
                 <div className="flex items-center justify-between pt-1">
-                  <Link
-                    href={`/posts/${post.id}`}
-                    className="text-xs text-sky-200 hover:underline"
-                  >
-                    查看详情与验证报告 →
-                  </Link>
-                  <ReviewButton postId={post.id} />
+                  <div className="text-[11px] text-zinc-500">
+                    最近复核：
+                    {post.verifiedAt
+                      ? new Date(post.verifiedAt).toLocaleString("zh-CN")
+                      : "未复核"}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Link
+                      href={`/posts/${post.id}`}
+                      className="text-xs text-sky-200 hover:underline"
+                    >
+                      查看详情与验证报告 →
+                    </Link>
+                    <ReviewButton postId={post.id} />
+                  </div>
                 </div>
               </div>
             </div>
