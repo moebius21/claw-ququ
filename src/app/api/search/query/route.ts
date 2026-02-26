@@ -26,25 +26,29 @@ type LocalResult = {
 const norm = (v: string) => v.toLowerCase().trim();
 
 async function fetchReddit(query: string) {
-  const url = `https://www.reddit.com/search.json?q=${encodeURIComponent(`openclaw ${query}`)}&sort=relevance&t=year&limit=5`;
-  const res = await fetch(url, {
-    headers: { "User-Agent": "Mozilla/5.0 clawququ-bot" },
-    cache: "no-store",
-  });
-  if (!res.ok) return [] as Array<{ title: string; url: string; content: string }>;
-  const data = (await res.json()) as {
-    data?: { children?: Array<{ data?: { title?: string; selftext?: string; permalink?: string } }> };
-  };
+  try {
+    const url = `https://www.reddit.com/search.json?q=${encodeURIComponent(`openclaw ${query}`)}&sort=relevance&t=year&limit=5`;
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 clawququ-bot" },
+      cache: "no-store",
+    });
+    if (!res.ok) return [] as Array<{ title: string; url: string; content: string }>;
+    const data = (await res.json()) as {
+      data?: { children?: Array<{ data?: { title?: string; selftext?: string; permalink?: string } }> };
+    };
 
-  return (data.data?.children ?? [])
-    .map((c) => c.data)
-    .filter(Boolean)
-    .map((d) => ({
-      title: d?.title?.trim() || "Untitled",
-      url: d?.permalink ? `https://www.reddit.com${d.permalink}` : "https://www.reddit.com",
-      content: d?.selftext?.trim() || d?.title?.trim() || "",
-    }))
-    .filter((x) => x.content.length > 0);
+    return (data.data?.children ?? [])
+      .map((c) => c.data)
+      .filter(Boolean)
+      .map((d) => ({
+        title: d?.title?.trim() || "Untitled",
+        url: d?.permalink ? `https://www.reddit.com${d.permalink}` : "https://www.reddit.com",
+        content: d?.selftext?.trim() || d?.title?.trim() || "",
+      }))
+      .filter((x) => x.content.length > 0);
+  } catch {
+    return [];
+  }
 }
 
 async function fetchGithubIssues(query: string) {
@@ -141,80 +145,86 @@ export async function POST(request: Request) {
   if (!query) return NextResponse.json({ error: "query is required" }, { status: 400 });
 
   const local = localSearch(query);
-  const [reddit, docs, githubIssues] = await Promise.all([
-    fetchReddit(query),
-    fetchDocs(query),
-    fetchGithubIssues(query),
-  ]);
 
-  const knownSourceUrls = new Set<string>([
-    ...posts.map((p) => p.sourceUrl),
-    ...listPublishedPosts().map((p) => p.sourceUrl),
-  ]);
+  try {
+    const [reddit, docs, githubIssues] = await Promise.all([
+      fetchReddit(query),
+      fetchDocs(query),
+      fetchGithubIssues(query),
+    ]);
 
-  const seen = new Set<string>();
-  const external = [...reddit, ...docs, ...githubIssues]
-    .filter((item) => {
-      const url = item.url.trim();
-      if (!url) return false;
-      if (knownSourceUrls.has(url)) return false;
-      if (seen.has(url)) return false;
-      seen.add(url);
-      return true;
-    })
-    .slice(0, 10);
+    const knownSourceUrls = new Set<string>([
+      ...posts.map((p) => p.sourceUrl),
+      ...listPublishedPosts().map((p) => p.sourceUrl),
+    ]);
 
-  const imported: Array<{
-    rawId: string;
-    publishedId: string;
-    jobId: string;
-    title: string;
-    sourceUrl: string;
-    sourceType: "Reddit" | "Docs" | "GitHub" | "Web";
-    importedAt: string;
-  }> = [];
-  for (const item of external) {
-    const raw = ingestRawPost({
-      source: item.url.includes("reddit.com") ? "Reddit" : "Google",
-      sourceUrl: item.url,
-      title: item.title,
-      content: item.content.slice(0, 5000),
-    });
+    const seen = new Set<string>();
+    const external = [...reddit, ...docs, ...githubIssues]
+      .filter((item) => {
+        const url = item.url.trim();
+        if (!url) return false;
+        if (knownSourceUrls.has(url)) return false;
+        if (seen.has(url)) return false;
+        seen.add(url);
+        return true;
+      })
+      .slice(0, 10);
 
-    // 自动从 raw 生成草稿并发布，再加入复核队列
-    setRawPostStatus(raw.id, "create_draft");
-    const draftResult = publishDraft(`draft-${raw.id}`) as { publishedId: string };
-    const queued = enqueueVerifyJobForPublished(draftResult.publishedId) as { job: { id: string } };
+    const imported: Array<{
+      rawId: string;
+      publishedId: string;
+      jobId: string;
+      title: string;
+      sourceUrl: string;
+      sourceType: "Reddit" | "Docs" | "GitHub" | "Web";
+      importedAt: string;
+    }> = [];
 
-    try {
-      runVerifyJob(queued.job.id);
-    } catch {
-      // keep queued/failed state
+    for (const item of external) {
+      const raw = ingestRawPost({
+        source: item.url.includes("reddit.com") ? "Reddit" : "Google",
+        sourceUrl: item.url,
+        title: item.title,
+        content: item.content.slice(0, 5000),
+      });
+
+      setRawPostStatus(raw.id, "create_draft");
+      const draftResult = publishDraft(`draft-${raw.id}`) as { publishedId: string };
+      const queued = enqueueVerifyJobForPublished(draftResult.publishedId) as { job: { id: string } };
+
+      try {
+        runVerifyJob(queued.job.id);
+      } catch {
+        // keep queued/failed state
+      }
+
+      const sourceType = item.url.includes("reddit.com")
+        ? "Reddit"
+        : item.url.includes("docs.openclaw.ai")
+          ? "Docs"
+          : item.url.includes("github.com/openclaw/openclaw")
+            ? "GitHub"
+            : "Web";
+
+      imported.push({
+        rawId: raw.id,
+        publishedId: draftResult.publishedId,
+        jobId: queued.job.id,
+        title: item.title,
+        sourceUrl: item.url,
+        sourceType,
+        importedAt: raw.fetchedAt,
+      });
     }
 
-    const sourceType = item.url.includes("reddit.com")
-      ? "Reddit"
-      : item.url.includes("docs.openclaw.ai")
-        ? "Docs"
-        : item.url.includes("github.com/openclaw/openclaw")
-          ? "GitHub"
-          : "Web";
-
-    imported.push({
-      rawId: raw.id,
-      publishedId: draftResult.publishedId,
-      jobId: queued.job.id,
-      title: item.title,
-      sourceUrl: item.url,
-      sourceType,
-      importedAt: raw.fetchedAt,
+    return NextResponse.json({ query, local, externalCount: external.length, imported });
+  } catch {
+    return NextResponse.json({
+      query,
+      local,
+      externalCount: 0,
+      imported: [],
+      warning: "外部抓取暂时不可用，已返回站内结果",
     });
   }
-
-  return NextResponse.json({
-    query,
-    local,
-    externalCount: external.length,
-    imported,
-  });
 }
