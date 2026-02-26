@@ -11,7 +11,7 @@ export type RawPost = {
   title: string;
   content: string;
   fetchedAt: string;
-  status: "new" | "accepted" | "ignored" | "review_queued";
+  status: "new" | "accepted" | "ignored" | "review_queued" | "drafted";
 };
 
 export type Claim = {
@@ -51,6 +51,19 @@ export type VerifyJob = {
   error?: string;
 };
 
+export type DraftPost = {
+  id: string;
+  rawId: string;
+  source: Post["source"];
+  sourceUrl: string;
+  title: string;
+  summary: string;
+  content: string;
+  tags: string[];
+  status: "draft";
+  createdAt: string;
+};
+
 const now = () => new Date().toISOString();
 
 const dataDir = path.join(process.cwd(), ".data");
@@ -87,6 +100,19 @@ CREATE TABLE IF NOT EXISTS reports (
   versions_json TEXT NOT NULL,
   claims_json TEXT NOT NULL,
   evidence_json TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS drafts (
+  id TEXT PRIMARY KEY,
+  raw_id TEXT NOT NULL UNIQUE,
+  source TEXT NOT NULL,
+  source_url TEXT NOT NULL,
+  title TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  content TEXT NOT NULL,
+  tags_json TEXT NOT NULL,
+  status TEXT NOT NULL,
   created_at TEXT NOT NULL
 );
 `);
@@ -161,6 +187,38 @@ export const listJobs = (): VerifyJob[] =>
       "SELECT id, post_id as postId, status, created_at as createdAt, updated_at as updatedAt, error FROM jobs ORDER BY created_at DESC",
     )
     .all() as VerifyJob[];
+
+export const listDrafts = (): DraftPost[] => {
+  const rows = db
+    .prepare(
+      "SELECT id, raw_id as rawId, source, source_url as sourceUrl, title, summary, content, tags_json as tagsJson, status, created_at as createdAt FROM drafts ORDER BY created_at DESC",
+    )
+    .all() as Array<{
+    id: string;
+    rawId: string;
+    source: Post["source"];
+    sourceUrl: string;
+    title: string;
+    summary: string;
+    content: string;
+    tagsJson: string;
+    status: "draft";
+    createdAt: string;
+  }>;
+
+  return rows.map((r) => ({
+    id: r.id,
+    rawId: r.rawId,
+    source: r.source,
+    sourceUrl: r.sourceUrl,
+    title: r.title,
+    summary: r.summary,
+    content: r.content,
+    tags: JSON.parse(r.tagsJson),
+    status: r.status,
+    createdAt: r.createdAt,
+  }));
+};
 
 export const listReports = (): VerificationReport[] => {
   const rows = db
@@ -368,10 +426,16 @@ export const ingestRawPost = (input: {
 
 export const setRawPostStatus = (
   rawId: string,
-  action: "accept" | "ignore" | "queue_review",
+  action: "accept" | "ignore" | "queue_review" | "create_draft",
 ) => {
   const targetStatus: RawPost["status"] =
-    action === "accept" ? "accepted" : action === "ignore" ? "ignored" : "review_queued";
+    action === "accept"
+      ? "accepted"
+      : action === "ignore"
+        ? "ignored"
+        : action === "queue_review"
+          ? "review_queued"
+          : "drafted";
 
   const found = db
     .prepare(
@@ -382,6 +446,32 @@ export const setRawPostStatus = (
   if (!found) throw new Error("raw post not found");
 
   db.prepare("UPDATE raw_posts SET status = ? WHERE id = ?").run(targetStatus, rawId);
+
+  if (action === "create_draft") {
+    const existing = db
+      .prepare("SELECT id FROM drafts WHERE raw_id = ?")
+      .get(rawId) as { id: string } | undefined;
+
+    if (!existing) {
+      const summary = found.content.slice(0, 120).replace(/\s+/g, " ").trim();
+      const draftId = `draft-${rawId}`;
+      const tags = [found.source, "待整理", "待复核"];
+      db.prepare(
+        "INSERT INTO drafts (id, raw_id, source, source_url, title, summary, content, tags_json, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      ).run(
+        draftId,
+        rawId,
+        found.source,
+        found.sourceUrl,
+        found.title,
+        summary || found.title,
+        found.content,
+        JSON.stringify(tags),
+        "draft",
+        now(),
+      );
+    }
+  }
 
   return {
     ...found,

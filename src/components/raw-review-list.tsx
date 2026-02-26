@@ -10,7 +10,7 @@ type RawPost = {
   title: string;
   content: string;
   fetchedAt: string;
-  status: "new" | "accepted" | "ignored" | "review_queued";
+  status: "new" | "accepted" | "ignored" | "review_queued" | "drafted";
 };
 
 const statusLabel: Record<RawPost["status"], string> = {
@@ -18,13 +18,17 @@ const statusLabel: Record<RawPost["status"], string> = {
   accepted: "已采纳",
   ignored: "已忽略",
   review_queued: "待复核",
+  drafted: "已生成草稿",
 };
 
 export function RawReviewList({ raws }: { raws: RawPost[] }) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
-  const updateStatus = (id: string, action: "accept" | "ignore" | "queue_review") => {
+  const updateStatus = (
+    id: string,
+    action: "accept" | "ignore" | "queue_review" | "create_draft",
+  ) => {
     startTransition(async () => {
       await fetch(`/api/raw-posts/${id}/action`, {
         method: "POST",
@@ -69,6 +73,14 @@ export function RawReviewList({ raws }: { raws: RawPost[] }) {
                 className="rounded-md border border-sky-400/30 bg-sky-500/10 px-2 py-1 text-xs text-sky-200"
               >
                 加入复核队列
+              </button>
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => updateStatus(raw.id, "create_draft")}
+                className="rounded-md border border-violet-400/30 bg-violet-500/10 px-2 py-1 text-xs text-violet-200"
+              >
+                生成帖子草稿
               </button>
               <button
                 type="button"

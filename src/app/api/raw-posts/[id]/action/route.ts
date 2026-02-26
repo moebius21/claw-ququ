@@ -8,7 +8,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const body = (await request.json()) as { action?: "accept" | "ignore" | "queue_review" };
+  const body = (await request.json()) as {
+    action?: "accept" | "ignore" | "queue_review" | "create_draft";
+  };
 
   if (!body.action) {
     return NextResponse.json({ error: "action is required" }, { status: 400 });

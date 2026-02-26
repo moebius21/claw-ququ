@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { IngestForm } from "@/components/ingest-form";
 import { RawReviewList } from "@/components/raw-review-list";
-import { listJobs, listRawPosts, listReports } from "@/data/orchestrator";
+import { listDrafts, listJobs, listRawPosts, listReports } from "@/data/orchestrator";
 
 const statusStyle: Record<string, string> = {
   queued: "text-amber-200",
@@ -15,6 +15,7 @@ export default function OpsPage() {
   const jobs = listJobs();
   const raws = listRawPosts();
   const reports = listReports();
+  const drafts = listDrafts();
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -26,7 +27,7 @@ export default function OpsPage() {
           </Link>
         </div>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+        <div className="mt-6 grid gap-4 sm:grid-cols-4">
           <div className="rounded-xl border border-white/10 bg-white/5 p-4">
             <div className="text-xs text-zinc-400">Raw Posts</div>
             <div className="mt-2 text-2xl font-semibold">{raws.length}</div>
@@ -39,6 +40,10 @@ export default function OpsPage() {
             <div className="text-xs text-zinc-400">Reports</div>
             <div className="mt-2 text-2xl font-semibold">{reports.length}</div>
           </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <div className="text-xs text-zinc-400">Drafts</div>
+            <div className="mt-2 text-2xl font-semibold">{drafts.length}</div>
+          </div>
         </div>
 
         <section className="mt-8">
@@ -48,6 +53,23 @@ export default function OpsPage() {
         <section className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4">
           <h2 className="text-sm font-medium text-white">最近导入（Raw Posts）</h2>
           <RawReviewList raws={raws} />
+        </section>
+
+        <section className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4">
+          <h2 className="text-sm font-medium text-white">帖子草稿（Drafts）</h2>
+          <div className="mt-3 space-y-2 text-sm">
+            {drafts.length === 0 ? (
+              <div className="text-zinc-400">暂无草稿</div>
+            ) : (
+              drafts.slice(0, 10).map((draft) => (
+                <div key={draft.id} className="rounded-lg border border-white/10 bg-black/20 px-3 py-2">
+                  <div className="text-zinc-200">{draft.title}</div>
+                  <div className="mt-1 text-xs text-zinc-500">{draft.source} · {draft.status} · {new Date(draft.createdAt).toLocaleString("zh-CN")}</div>
+                  <div className="mt-1 text-xs text-zinc-400">{draft.summary}</div>
+                </div>
+              ))
+            )}
+          </div>
         </section>
 
         <section className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4">
