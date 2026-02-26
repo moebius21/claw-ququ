@@ -1,5 +1,7 @@
 # Claw蛐蛐 (clawququ)
 
+![CI](https://github.com/moebius21/claw-ququ/actions/workflows/ci.yml/badge.svg)
+
 一个对 **OpenClaw 用户** 和 **OpenClaw Agent** 都友好的知识站。
 
 ## 项目目标
