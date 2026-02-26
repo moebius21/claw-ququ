@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ReviewButton } from "@/components/review-button";
 import { posts, queryPosts, type Post, type VerificationStatus } from "@/data/posts";
 
 const getFirst = (value: string | string[] | undefined) =>
@@ -66,6 +67,14 @@ export default async function Home({
             聚合小红书、知乎、Reddit、Google 的 OpenClaw 使用经验帖；每条帖子由 agent
             进行可信度验证，方便人类和 AI agent 快速检索与复用。
           </p>
+          <div>
+            <Link
+              href="/ops"
+              className="inline-flex rounded-lg border border-white/15 bg-white/10 px-3 py-1.5 text-xs text-zinc-100 hover:bg-white/15"
+            >
+              进入编排控制台（Ops）
+            </Link>
+          </div>
         </header>
 
         <section className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
@@ -147,9 +156,8 @@ export default async function Home({
 
         <section className="mt-8 grid gap-4">
           {filtered.map((post) => (
-            <Link
+            <div
               key={post.id}
-              href={`/posts/${post.id}`}
               className="group rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:border-white/20 hover:bg-white/[0.07]"
             >
               <div className="flex flex-col gap-3">
@@ -173,9 +181,12 @@ export default async function Home({
                 </div>
 
                 <div className="flex items-start justify-between gap-4">
-                  <h2 className="text-lg font-semibold text-white group-hover:text-sky-200">
+                  <Link
+                    href={`/posts/${post.id}`}
+                    className="text-lg font-semibold text-white hover:text-sky-200"
+                  >
                     {post.title}
-                  </h2>
+                  </Link>
                   <span className="shrink-0 text-xs text-zinc-500">
                     {new Date(post.createdAt).toLocaleDateString("zh-CN")}
                   </span>
@@ -198,8 +209,17 @@ export default async function Home({
                     </span>
                   ) : null}
                 </div>
+                <div className="flex items-center justify-between pt-1">
+                  <Link
+                    href={`/posts/${post.id}`}
+                    className="text-xs text-sky-200 hover:underline"
+                  >
+                    查看详情与验证报告 →
+                  </Link>
+                  <ReviewButton postId={post.id} />
+                </div>
               </div>
-            </Link>
+            </div>
           ))}
           {filtered.length === 0 ? (
             <div className="rounded-2xl border border-white/10 bg-white/5 p-10 text-center text-sm text-zinc-300">
