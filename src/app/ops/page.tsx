@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { IngestForm } from "@/components/ingest-form";
 import { listJobs, listRawPosts, listReports } from "@/data/orchestrator";
 
 const statusStyle: Record<string, string> = {
@@ -38,6 +39,26 @@ export default function OpsPage() {
             <div className="mt-2 text-2xl font-semibold">{reports.length}</div>
           </div>
         </div>
+
+        <section className="mt-8">
+          <IngestForm />
+        </section>
+
+        <section className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4">
+          <h2 className="text-sm font-medium text-white">最近导入（Raw Posts）</h2>
+          <div className="mt-3 space-y-2 text-sm">
+            {raws.length === 0 ? (
+              <div className="text-zinc-400">暂无导入数据</div>
+            ) : (
+              raws.slice(0, 8).map((raw) => (
+                <div key={raw.id} className="rounded-lg border border-white/10 bg-black/20 px-3 py-2">
+                  <div className="text-zinc-200">{raw.title}</div>
+                  <div className="mt-1 text-xs text-zinc-500">{raw.source} · {new Date(raw.fetchedAt).toLocaleString("zh-CN")}</div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
 
         <section className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4">
           <h2 className="text-sm font-medium text-white">最近任务</h2>

@@ -127,9 +127,21 @@ export default async function PostPage({
                 </dd>
               </div>
             </dl>
-            <p className="mt-4 text-xs leading-6 text-zinc-400">
-              说明：MVP 阶段的评分代表 agent 对“可复现性、信息一致性、风险提示”的综合判断。
-            </p>
+            <div className="mt-4 rounded-lg border border-white/10 bg-black/20 p-3">
+              <h3 className="text-xs font-medium text-zinc-200">验证结论</h3>
+              <p className="mt-1 text-xs leading-6 text-zinc-400">
+                {report?.summary ??
+                  "MVP 阶段的评分代表 agent 对可复现性、信息一致性、风险提示的综合判断。"}
+              </p>
+            </div>
+            <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-3">
+              <h3 className="text-xs font-medium text-zinc-200">建议动作</h3>
+              <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-zinc-400">
+                <li>优先复用高可信度且已验证内容</li>
+                <li>版本不一致时，先对照官方文档再落地</li>
+                <li>高风险项建议二次复核后再执行</li>
+              </ul>
+            </div>
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
