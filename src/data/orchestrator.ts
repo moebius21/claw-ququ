@@ -60,9 +60,11 @@ export type DraftPost = {
   summary: string;
   content: string;
   tags: string[];
-  status: "draft";
+  status: "draft" | "published";
   createdAt: string;
 };
+
+export type PublishedPost = Post;
 
 const now = () => new Date().toISOString();
 
@@ -114,6 +116,21 @@ CREATE TABLE IF NOT EXISTS drafts (
   tags_json TEXT NOT NULL,
   status TEXT NOT NULL,
   created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS published_posts (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  content TEXT NOT NULL,
+  source TEXT NOT NULL,
+  source_url TEXT NOT NULL,
+  tags_json TEXT NOT NULL,
+  trust_score INTEGER NOT NULL,
+  verification_status TEXT NOT NULL,
+  claw_version TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  verified_at TEXT
 );
 `);
 
@@ -202,7 +219,7 @@ export const listDrafts = (): DraftPost[] => {
     summary: string;
     content: string;
     tagsJson: string;
-    status: "draft";
+    status: "draft" | "published";
     createdAt: string;
   }>;
 
@@ -218,6 +235,82 @@ export const listDrafts = (): DraftPost[] => {
     status: r.status,
     createdAt: r.createdAt,
   }));
+};
+
+export const listPublishedPosts = (): PublishedPost[] => {
+  const rows = db
+    .prepare(
+      "SELECT id, title, summary, content, source, source_url as sourceUrl, tags_json as tagsJson, trust_score as trustScore, verification_status as verificationStatus, claw_version as clawVersion, created_at as createdAt, verified_at as verifiedAt FROM published_posts ORDER BY created_at DESC",
+    )
+    .all() as Array<{
+    id: string;
+    title: string;
+    summary: string;
+    content: string;
+    source: Post["source"];
+    sourceUrl: string;
+    tagsJson: string;
+    trustScore: number;
+    verificationStatus: VerificationStatus;
+    clawVersion: string;
+    createdAt: string;
+    verifiedAt: string | null;
+  }>;
+
+  return rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    summary: r.summary,
+    content: r.content,
+    source: r.source,
+    sourceUrl: r.sourceUrl,
+    tags: JSON.parse(r.tagsJson),
+    trustScore: r.trustScore,
+    verificationStatus: r.verificationStatus,
+    clawVersion: r.clawVersion,
+    createdAt: r.createdAt,
+    verifiedAt: r.verifiedAt,
+  }));
+};
+
+export const getPublishedPostById = (id: string): PublishedPost | undefined => {
+  const row = db
+    .prepare(
+      "SELECT id, title, summary, content, source, source_url as sourceUrl, tags_json as tagsJson, trust_score as trustScore, verification_status as verificationStatus, claw_version as clawVersion, created_at as createdAt, verified_at as verifiedAt FROM published_posts WHERE id = ? LIMIT 1",
+    )
+    .get(id) as
+    | {
+        id: string;
+        title: string;
+        summary: string;
+        content: string;
+        source: Post["source"];
+        sourceUrl: string;
+        tagsJson: string;
+        trustScore: number;
+        verificationStatus: VerificationStatus;
+        clawVersion: string;
+        createdAt: string;
+        verifiedAt: string | null;
+      }
+    | undefined;
+
+  if (!row) return undefined;
+
+  return {
+    id: row.id,
+    title: row.title,
+    summary: row.summary,
+    content: row.content,
+    source: row.source,
+    sourceUrl: row.sourceUrl,
+    tags: JSON.parse(row.tagsJson),
+    trustScore: row.trustScore,
+    verificationStatus: row.verificationStatus,
+    clawVersion: row.clawVersion,
+    createdAt: row.createdAt,
+    verifiedAt: row.verifiedAt,
+  };
 };
 
 export const listReports = (): VerificationReport[] => {
@@ -477,4 +570,61 @@ export const setRawPostStatus = (
     ...found,
     status: targetStatus,
   } satisfies RawPost;
+};
+
+export const publishDraft = (draftId: string) => {
+  const draft = db
+    .prepare(
+      "SELECT id, raw_id as rawId, source, source_url as sourceUrl, title, summary, content, tags_json as tagsJson, status, created_at as createdAt FROM drafts WHERE id = ?",
+    )
+    .get(draftId) as
+    | {
+        id: string;
+        rawId: string;
+        source: Post["source"];
+        sourceUrl: string;
+        title: string;
+        summary: string;
+        content: string;
+        tagsJson: string;
+        status: "draft" | "published";
+        createdAt: string;
+      }
+    | undefined;
+
+  if (!draft) throw new Error("draft not found");
+
+  const publishedId = `pub-${draft.id}`;
+  const exists = db
+    .prepare("SELECT id FROM published_posts WHERE id = ?")
+    .get(publishedId) as { id: string } | undefined;
+
+  if (!exists) {
+    db.prepare(
+      "INSERT INTO published_posts (id, title, summary, content, source, source_url, tags_json, trust_score, verification_status, claw_version, created_at, verified_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    ).run(
+      publishedId,
+      draft.title,
+      draft.summary,
+      draft.content,
+      draft.source,
+      draft.sourceUrl,
+      draft.tagsJson,
+      72,
+      "pending",
+      ">=0.10.0",
+      now(),
+      null,
+    );
+  }
+
+  db.prepare("UPDATE drafts SET status = ? WHERE id = ?").run("published", draftId);
+
+  const updated = db
+    .prepare(
+      "SELECT id, raw_id as rawId, source, source_url as sourceUrl, title, summary, content, tags_json as tagsJson, status, created_at as createdAt FROM drafts WHERE id = ?",
+    )
+    .get(draftId);
+
+  return { draft: updated, publishedId };
 };

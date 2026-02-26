@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { getLatestReportByPostId } from "@/data/orchestrator";
+import { getLatestReportByPostId, getPublishedPostById } from "@/data/orchestrator";
 import { getPostById, type VerificationStatus } from "@/data/posts";
 
 const statusLabel: Record<VerificationStatus, string> = {
@@ -25,7 +25,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const post = getPostById(id);
+  const post = getPostById(id) ?? getPublishedPostById(id);
   if (!post) return { title: "帖子不存在 · Claw蛐蛐" };
   return {
     title: `${post.title} · Claw蛐蛐`,
@@ -39,7 +39,7 @@ export default async function PostPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const post = getPostById(id);
+  const post = getPostById(id) ?? getPublishedPostById(id);
   if (!post) notFound();
   const report = getLatestReportByPostId(id);
 

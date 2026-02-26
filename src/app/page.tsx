@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ReviewButton } from "@/components/review-button";
+import { listPublishedPosts } from "@/data/orchestrator";
 import { posts, queryPosts, type Post, type VerificationStatus } from "@/data/posts";
 
 const getFirst = (value: string | string[] | undefined) =>
@@ -39,17 +40,35 @@ export default async function Home({
   const status = getFirst(sp.status) ?? "";
   const q = getFirst(sp.q) ?? "";
 
-  const filtered = queryPosts({
+  const filteredStatic = queryPosts({
     tag: tag || null,
     source: source || null,
     status: status || null,
     q: q || null,
   });
 
-  const allTags = Array.from(new Set(posts.flatMap((p) => p.tags))).sort((a, b) =>
+  const published = listPublishedPosts();
+  const normalize = (v: string) => v.trim().toLowerCase();
+  const filteredPublished = published
+    .filter((post) => {
+      if (tag && !post.tags.some((t) => normalize(t) === normalize(tag))) return false;
+      if (source && normalize(post.source) !== normalize(source)) return false;
+      if (status && normalize(post.verificationStatus) !== normalize(status)) return false;
+      if (q) {
+        const h = normalize([post.title, post.summary, post.content, post.source, ...post.tags].join("\n"));
+        if (!h.includes(normalize(q))) return false;
+      }
+      return true;
+    });
+
+  const filtered = [...filteredPublished, ...filteredStatic].sort((a, b) =>
+    a.createdAt < b.createdAt ? 1 : -1,
+  );
+
+  const allTags = Array.from(new Set([...posts, ...published].flatMap((p) => p.tags))).sort((a, b) =>
     a.localeCompare(b, "zh-Hans-CN"),
   );
-  const allSources = Array.from(new Set(posts.map((p) => p.source)));
+  const allSources = Array.from(new Set([...posts, ...published].map((p) => p.source)));
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -134,7 +153,7 @@ export default async function Home({
             <div className="sm:col-span-12 flex items-center justify-between pt-2">
               <div className="text-sm text-zinc-400">
                 共 <span className="text-zinc-200">{filtered.length}</span> 条
-                （全部 {posts.length} 条）
+                （全部 {posts.length + published.length} 条）
               </div>
               <div className="flex gap-2">
                 <Link

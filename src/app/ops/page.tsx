@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { DraftReviewList } from "@/components/draft-review-list";
 import { IngestForm } from "@/components/ingest-form";
 import { RawReviewList } from "@/components/raw-review-list";
 import { listDrafts, listJobs, listRawPosts, listReports } from "@/data/orchestrator";
@@ -57,19 +58,7 @@ export default function OpsPage() {
 
         <section className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4">
           <h2 className="text-sm font-medium text-white">帖子草稿（Drafts）</h2>
-          <div className="mt-3 space-y-2 text-sm">
-            {drafts.length === 0 ? (
-              <div className="text-zinc-400">暂无草稿</div>
-            ) : (
-              drafts.slice(0, 10).map((draft) => (
-                <div key={draft.id} className="rounded-lg border border-white/10 bg-black/20 px-3 py-2">
-                  <div className="text-zinc-200">{draft.title}</div>
-                  <div className="mt-1 text-xs text-zinc-500">{draft.source} · {draft.status} · {new Date(draft.createdAt).toLocaleString("zh-CN")}</div>
-                  <div className="mt-1 text-xs text-zinc-400">{draft.summary}</div>
-                </div>
-              ))
-            )}
-          </div>
+          <DraftReviewList drafts={drafts} />
         </section>
 
         <section className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4">
