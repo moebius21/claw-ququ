@@ -572,6 +572,57 @@ export const setRawPostStatus = (
   } satisfies RawPost;
 };
 
+export const updateDraft = (
+  draftId: string,
+  input: { title?: string; summary?: string; tags?: string[] },
+) => {
+  const draft = db
+    .prepare(
+      "SELECT id, raw_id as rawId, source, source_url as sourceUrl, title, summary, content, tags_json as tagsJson, status, created_at as createdAt FROM drafts WHERE id = ?",
+    )
+    .get(draftId) as
+    | {
+        id: string;
+        rawId: string;
+        source: Post["source"];
+        sourceUrl: string;
+        title: string;
+        summary: string;
+        content: string;
+        tagsJson: string;
+        status: "draft" | "published";
+        createdAt: string;
+      }
+    | undefined;
+
+  if (!draft) throw new Error("draft not found");
+  if (draft.status === "published") throw new Error("published draft is read-only");
+
+  const nextTitle = input.title?.trim() || draft.title;
+  const nextSummary = input.summary?.trim() || draft.summary;
+  const nextTags = (input.tags?.filter(Boolean) ?? JSON.parse(draft.tagsJson)) as string[];
+
+  db.prepare("UPDATE drafts SET title = ?, summary = ?, tags_json = ? WHERE id = ?").run(
+    nextTitle,
+    nextSummary,
+    JSON.stringify(nextTags),
+    draftId,
+  );
+
+  return {
+    id: draft.id,
+    rawId: draft.rawId,
+    source: draft.source,
+    sourceUrl: draft.sourceUrl,
+    title: nextTitle,
+    summary: nextSummary,
+    content: draft.content,
+    tags: nextTags,
+    status: draft.status,
+    createdAt: draft.createdAt,
+  } satisfies DraftPost;
+};
+
 export const publishDraft = (draftId: string) => {
   const draft = db
     .prepare(
