@@ -186,7 +186,7 @@ if (reportCount === 0) {
 }
 
 const getPostOrThrow = (postId: string) => {
-  const post = getPostById(postId);
+  const post = getPostById(postId) ?? getPublishedPostById(postId);
   if (!post) throw new Error("post not found");
   return post;
 };
@@ -621,6 +621,27 @@ export const updateDraft = (
     status: draft.status,
     createdAt: draft.createdAt,
   } satisfies DraftPost;
+};
+
+export const enqueueVerifyJobForPublished = (publishedId: string) => {
+  const pub = db
+    .prepare("SELECT id FROM published_posts WHERE id = ?")
+    .get(publishedId) as { id: string } | undefined;
+  if (!pub) throw new Error("published post not found");
+
+  const job: VerifyJob = {
+    id: `job-${publishedId}-${Date.now()}`,
+    postId: publishedId,
+    status: "queued",
+    createdAt: now(),
+    updatedAt: now(),
+  };
+
+  db.prepare(
+    "INSERT INTO jobs (id, post_id, status, created_at, updated_at, error) VALUES (?, ?, ?, ?, ?, NULL)",
+  ).run(job.id, job.postId, job.status, job.createdAt, job.updatedAt);
+
+  return { job };
 };
 
 export const publishDraft = (draftId: string) => {

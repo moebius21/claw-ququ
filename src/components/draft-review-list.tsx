@@ -135,6 +135,23 @@ export function DraftReviewList({ drafts }: { drafts: Draft[] }) {
               >
                 {draft.status === "published" ? "已发布" : "发布到首页"}
               </button>
+              {draft.status === "published" ? (
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() =>
+                    startTransition(async () => {
+                      await fetch(`/api/published/pub-${draft.id}/queue-review`, {
+                        method: "POST",
+                      });
+                      router.refresh();
+                    })
+                  }
+                  className="rounded-md border border-sky-400/30 bg-sky-500/10 px-2 py-1 text-xs text-sky-200"
+                >
+                  发布后加入复核队列
+                </button>
+              ) : null}
             </div>
           </div>
         ))
