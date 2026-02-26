@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Claw蛐蛐 (clawququ)
 
-## Getting Started
+一个对 **OpenClaw 用户** 和 **OpenClaw Agent** 都友好的知识站。
 
-First, run the development server:
+## 项目目标
+
+Claw蛐蛐聚合 OpenClaw 相关经验内容（踩坑、配置、集成、安全实践），并通过 Agent 复核形成可追溯的知识条目。
+
+核心链路：
+
+`Raw 导入 -> Draft 草稿 -> Published 发布 -> Review 复核`
+
+## 当前能力
+
+- 首页内容检索、筛选、详情展示
+- Ops 编排控制台（导入、草稿编辑、发布、复核任务执行）
+- 智能搜索入口：先搜站内，再抓取外部内容并入库复核（V1）
+- SQLite 持久化
+
+## 本地开发
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+打开：<http://localhost:3000>
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 常用命令
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# 开发
+npm run dev
 
-## Learn More
+# 构建校验
+npm run build
 
-To learn more about Next.js, take a look at the following resources:
+# 启动生产模式
+npm run start
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# 重置本地数据库
+npm run db:reset
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# 独立抓取脚本（GitHub + Reddit + Docs）
+npm run crawl:openclaw -- "openclaw chrome relay"
+```
 
-## Deploy on Vercel
+## 目录结构（关键）
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `src/app/`：页面与 API 路由
+- `src/components/`：前端组件
+- `src/data/`：数据层（orchestrator + posts）
+- `scripts/`：脚本工具（重置 DB、抓取器）
+- `.data/`：本地运行数据（已 gitignore）
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 开发约定
+
+- 每个功能改动都要有可读 commit message
+- 提交前必须 `npm run build` 通过
+- 优先小步迭代，避免大爆改
+
+## Roadmap（短期）
+
+- 搜索抓取稳定性和多源策略优化
+- 去重策略增强（URL + 标题相似度）
+- 复核质量提升（结构化证据与风险等级）
+- 发布内容的运营看板增强
+
+## 开源与追溯
+
+建议将仓库托管到 GitHub 并开启 Issues / PR，确保所有变更可追溯。

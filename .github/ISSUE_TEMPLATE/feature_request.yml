@@ -1,0 +1,22 @@
+name: Feature Request
+description: 提交功能建议
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你遇到的问题
+      description: 当前有什么痛点？
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 你希望怎么改
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 范围和影响
+      description: 会影响哪些模块？
