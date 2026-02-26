@@ -3,7 +3,13 @@ import Link from "next/link";
 import { DraftReviewList } from "@/components/draft-review-list";
 import { IngestForm } from "@/components/ingest-form";
 import { RawReviewList } from "@/components/raw-review-list";
-import { listDrafts, listJobs, listRawPosts, listReports } from "@/data/orchestrator";
+import {
+  listDrafts,
+  listJobs,
+  listPublishedPosts,
+  listRawPosts,
+  listReports,
+} from "@/data/orchestrator";
 
 const statusStyle: Record<string, string> = {
   queued: "text-amber-200",
@@ -17,6 +23,9 @@ export default function OpsPage() {
   const raws = listRawPosts();
   const reports = listReports();
   const drafts = listDrafts();
+  const published = listPublishedPosts();
+  const pendingPublished = published.filter((p) => p.verificationStatus === "pending");
+  const lowScorePublished = published.filter((p) => p.trustScore < 75);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -59,6 +68,44 @@ export default function OpsPage() {
         <section className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4">
           <h2 className="text-sm font-medium text-white">帖子草稿（Drafts）</h2>
           <DraftReviewList drafts={drafts} />
+        </section>
+
+        <section className="mt-8 grid gap-4 sm:grid-cols-2">
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <h2 className="text-sm font-medium text-white">已发布待复核</h2>
+            <div className="mt-3 space-y-2 text-sm">
+              {pendingPublished.length === 0 ? (
+                <div className="text-zinc-400">暂无待复核发布内容</div>
+              ) : (
+                pendingPublished.slice(0, 8).map((p) => (
+                  <div key={p.id} className="rounded-lg border border-white/10 bg-black/20 px-3 py-2">
+                    <div className="text-zinc-200">{p.title}</div>
+                    <div className="mt-1 text-xs text-zinc-500">
+                      score {p.trustScore} · {p.verificationStatus}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <h2 className="text-sm font-medium text-white">已发布低分内容（&lt;75）</h2>
+            <div className="mt-3 space-y-2 text-sm">
+              {lowScorePublished.length === 0 ? (
+                <div className="text-zinc-400">暂无低分发布内容</div>
+              ) : (
+                lowScorePublished.slice(0, 8).map((p) => (
+                  <div key={p.id} className="rounded-lg border border-white/10 bg-black/20 px-3 py-2">
+                    <div className="text-zinc-200">{p.title}</div>
+                    <div className="mt-1 text-xs text-zinc-500">
+                      score {p.trustScore} · 最近复核 {p.verifiedAt ? new Date(p.verifiedAt).toLocaleString("zh-CN") : "未复核"}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </section>
 
         <section className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4">
