@@ -47,6 +47,31 @@ async function fetchReddit(query: string) {
     .filter((x) => x.content.length > 0);
 }
 
+async function fetchGithubIssues(query: string) {
+  const url = `https://api.github.com/search/issues?q=${encodeURIComponent(`${query} repo:openclaw/openclaw is:issue`)}&per_page=5&sort=updated&order=desc`;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        Accept: "application/vnd.github+json",
+        "User-Agent": "clawququ-search-bot",
+      },
+      cache: "no-store",
+    });
+    if (!res.ok) return [] as Array<{ title: string; url: string; content: string }>;
+    const data = (await res.json()) as {
+      items?: Array<{ title?: string; html_url?: string; body?: string }>;
+    };
+
+    return (data.items ?? []).map((it) => ({
+      title: `GitHub Issue: ${it.title?.trim() || "Untitled"}`,
+      url: it.html_url || "https://github.com/openclaw/openclaw/issues",
+      content: (it.body || it.title || "").slice(0, 5000),
+    }));
+  } catch {
+    return [];
+  }
+}
+
 async function fetchDocs(query: string) {
   const seeds = [
     "https://docs.openclaw.ai/tools/browser",
@@ -116,8 +141,28 @@ export async function POST(request: Request) {
   if (!query) return NextResponse.json({ error: "query is required" }, { status: 400 });
 
   const local = localSearch(query);
-  const [reddit, docs] = await Promise.all([fetchReddit(query), fetchDocs(query)]);
-  const external = [...reddit, ...docs].slice(0, 8);
+  const [reddit, docs, githubIssues] = await Promise.all([
+    fetchReddit(query),
+    fetchDocs(query),
+    fetchGithubIssues(query),
+  ]);
+
+  const knownSourceUrls = new Set<string>([
+    ...posts.map((p) => p.sourceUrl),
+    ...listPublishedPosts().map((p) => p.sourceUrl),
+  ]);
+
+  const seen = new Set<string>();
+  const external = [...reddit, ...docs, ...githubIssues]
+    .filter((item) => {
+      const url = item.url.trim();
+      if (!url) return false;
+      if (knownSourceUrls.has(url)) return false;
+      if (seen.has(url)) return false;
+      seen.add(url);
+      return true;
+    })
+    .slice(0, 10);
 
   const imported: Array<{ rawId: string; publishedId: string; jobId: string; title: string; sourceUrl: string }> = [];
   for (const item of external) {

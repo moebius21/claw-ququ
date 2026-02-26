@@ -504,12 +504,24 @@ export const runVerifyJob = (jobId: string) => {
   }
 };
 
+export const findRawPostBySourceUrl = (sourceUrl: string): RawPost | undefined => {
+  const row = db
+    .prepare(
+      "SELECT id, source, source_url as sourceUrl, title, content, fetched_at as fetchedAt, status FROM raw_posts WHERE source_url = ? LIMIT 1",
+    )
+    .get(sourceUrl) as RawPost | undefined;
+  return row;
+};
+
 export const ingestRawPost = (input: {
   source: Post["source"];
   sourceUrl: string;
   title: string;
   content: string;
 }) => {
+  const existing = findRawPostBySourceUrl(input.sourceUrl);
+  if (existing) return existing;
+
   const id = `raw-custom-${Date.now()}`;
   const raw: RawPost = {
     id,
