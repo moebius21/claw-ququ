@@ -80,6 +80,16 @@ export function JobsQueuePanel({ jobs }: { jobs: Job[] }) {
                     执行
                   </button>
                 ) : null}
+                {job.status === "failed" ? (
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => runJob(job.id)}
+                    className="rounded-md border border-rose-400/30 bg-rose-500/10 px-2 py-1 text-xs text-rose-200"
+                  >
+                    重试
+                  </button>
+                ) : null}
               </div>
             </div>
           ))
