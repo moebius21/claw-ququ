@@ -13,14 +13,35 @@ import {
   listReports,
 } from "@/data/orchestrator";
 
-export default function OpsPage() {
+export default async function OpsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = (await searchParams) ?? {};
+  const qJob = Array.isArray(sp.job) ? sp.job[0] : sp.job;
+  const qPub = Array.isArray(sp.pub) ? sp.pub[0] : sp.pub;
+
   const jobs = listJobs();
   const raws = listRawPosts();
   const reports = listReports();
   const drafts = listDrafts();
   const published = listPublishedPosts();
-  const pendingPublished = published.filter((p) => p.verificationStatus === "pending");
-  const lowScorePublished = published.filter((p) => p.trustScore < 75);
+
+  const pendingPublishedAll = published.filter((p) => p.verificationStatus === "pending");
+  const lowScorePublishedAll = published.filter((p) => p.trustScore < 75);
+
+  const pendingPublished =
+    qPub === "low" ? lowScorePublishedAll : qPub === "pending" ? pendingPublishedAll : pendingPublishedAll;
+  const lowScorePublished =
+    qPub === "pending" ? pendingPublishedAll : qPub === "low" ? lowScorePublishedAll : lowScorePublishedAll;
+
+  const filteredJobs =
+    qJob === "queued"
+      ? jobs.filter((j) => j.status === "queued")
+      : qJob === "failed"
+        ? jobs.filter((j) => j.status === "failed")
+        : jobs;
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -29,6 +50,24 @@ export default function OpsPage() {
           <h1 className="text-2xl font-semibold">Claw蛐蛐 · 编排控制台</h1>
           <Link href="/" className="text-sm text-sky-200 hover:underline">
             返回首页
+          </Link>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+          <Link href="/ops" className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-zinc-200">
+            全部任务 ({jobs.length})
+          </Link>
+          <Link href="/ops?job=queued" className="rounded-full border border-amber-400/30 bg-amber-500/10 px-2.5 py-1 text-amber-200">
+            queued ({jobs.filter((j) => j.status === "queued").length})
+          </Link>
+          <Link href="/ops?job=failed" className="rounded-full border border-rose-400/30 bg-rose-500/10 px-2.5 py-1 text-rose-200">
+            failed ({jobs.filter((j) => j.status === "failed").length})
+          </Link>
+          <Link href="/ops?pub=pending" className="rounded-full border border-sky-400/30 bg-sky-500/10 px-2.5 py-1 text-sky-200">
+            已发布待复核 ({pendingPublishedAll.length})
+          </Link>
+          <Link href="/ops?pub=low" className="rounded-full border border-violet-400/30 bg-violet-500/10 px-2.5 py-1 text-violet-200">
+            已发布低分 ({lowScorePublishedAll.length})
           </Link>
         </div>
 
@@ -67,7 +106,7 @@ export default function OpsPage() {
 
         <PublishedQuickLists pending={pendingPublished} lowScore={lowScorePublished} />
 
-        <JobsQueuePanel jobs={jobs} />
+        <JobsQueuePanel jobs={filteredJobs} />
       </main>
     </div>
   );
