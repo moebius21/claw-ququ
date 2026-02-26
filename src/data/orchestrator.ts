@@ -469,6 +469,17 @@ export const runVerifyJob = (jobId: string) => {
       report.createdAt,
     );
 
+    // 如果复核对象是已发布内容，则把最新复核结果回写到发布表。
+    const publishedExists = db
+      .prepare("SELECT id FROM published_posts WHERE id = ?")
+      .get(report.postId) as { id: string } | undefined;
+
+    if (publishedExists) {
+      db.prepare(
+        "UPDATE published_posts SET trust_score = ?, verification_status = ?, verified_at = ? WHERE id = ?",
+      ).run(report.trustScore, report.status, report.createdAt, report.postId);
+    }
+
     db.prepare("UPDATE jobs SET status = ?, updated_at = ?, error = NULL WHERE id = ?").run(
       "done",
       now(),
