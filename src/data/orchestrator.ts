@@ -1,3 +1,7 @@
+import Database from "better-sqlite3";
+import fs from "node:fs";
+import path from "node:path";
+
 import { getPostById, posts, type Post, type VerificationStatus } from "@/data/posts";
 
 export type RawPost = {
@@ -48,48 +52,88 @@ export type VerifyJob = {
 
 const now = () => new Date().toISOString();
 
-let rawPosts: RawPost[] = posts.map((p) => ({
-  id: `raw-${p.id}`,
-  source: p.source,
-  sourceUrl: p.sourceUrl,
-  title: p.title,
-  content: p.content,
-  fetchedAt: p.createdAt,
-}));
+const dataDir = path.join(process.cwd(), ".data");
+fs.mkdirSync(dataDir, { recursive: true });
+const db = new Database(path.join(dataDir, "clawququ.db"));
 
-let jobs: VerifyJob[] = [];
-let reports: VerificationReport[] = posts.map((p) => ({
-  id: `vr-${p.id}`,
-  postId: p.id,
-  status: p.verificationStatus,
-  trustScore: p.trustScore,
-  summary: `来自 ${p.source} 的经验帖，已完成初始规则校验。`,
-  risks:
-    p.verificationStatus === "verified"
-      ? ["需要周期性复验，避免版本漂移"]
-      : p.verificationStatus === "outdated"
-        ? ["配置项可能已迁移", "建议按最新版本复跑步骤"]
-        : ["尚未完成可复现性验证"],
-  applicableVersions: [p.clawVersion],
-  claims: [
-    {
-      id: `claim-${p.id}-1`,
-      postId: p.id,
-      text: p.summary,
-      severity: "medium",
-    },
-  ],
-  evidence: [
-    {
-      id: `ev-${p.id}-1`,
-      postId: p.id,
-      type: "community",
-      title: `${p.source} 原帖`,
-      url: p.sourceUrl,
-    },
-  ],
-  createdAt: p.verifiedAt ?? p.createdAt,
-}));
+db.exec(`
+CREATE TABLE IF NOT EXISTS raw_posts (
+  id TEXT PRIMARY KEY,
+  source TEXT NOT NULL,
+  source_url TEXT NOT NULL,
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  fetched_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS jobs (
+  id TEXT PRIMARY KEY,
+  post_id TEXT NOT NULL,
+  status TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  error TEXT
+);
+
+CREATE TABLE IF NOT EXISTS reports (
+  id TEXT PRIMARY KEY,
+  post_id TEXT NOT NULL,
+  status TEXT NOT NULL,
+  trust_score INTEGER NOT NULL,
+  summary TEXT NOT NULL,
+  risks_json TEXT NOT NULL,
+  versions_json TEXT NOT NULL,
+  claims_json TEXT NOT NULL,
+  evidence_json TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+`);
+
+const reportCount = (db.prepare("SELECT COUNT(*) as c FROM reports").get() as { c: number }).c;
+if (reportCount === 0) {
+  const insertRaw = db.prepare(
+    "INSERT OR IGNORE INTO raw_posts (id, source, source_url, title, content, fetched_at) VALUES (?, ?, ?, ?, ?, ?)",
+  );
+  const insertReport = db.prepare(
+    "INSERT INTO reports (id, post_id, status, trust_score, summary, risks_json, versions_json, claims_json, evidence_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  );
+
+  for (const p of posts) {
+    insertRaw.run(`raw-${p.id}`, p.source, p.sourceUrl, p.title, p.content, p.createdAt);
+
+    const claims: Claim[] = [
+      { id: `claim-${p.id}-1`, postId: p.id, text: p.summary, severity: "medium" },
+    ];
+    const evidence: Evidence[] = [
+      {
+        id: `ev-${p.id}-1`,
+        postId: p.id,
+        type: "community",
+        title: `${p.source} 原帖`,
+        url: p.sourceUrl,
+      },
+    ];
+
+    insertReport.run(
+      `vr-${p.id}`,
+      p.id,
+      p.verificationStatus,
+      p.trustScore,
+      `来自 ${p.source} 的经验帖，已完成初始规则校验。`,
+      JSON.stringify(
+        p.verificationStatus === "verified"
+          ? ["需要周期性复验，避免版本漂移"]
+          : p.verificationStatus === "outdated"
+            ? ["配置项可能已迁移", "建议按最新版本复跑步骤"]
+            : ["尚未完成可复现性验证"],
+      ),
+      JSON.stringify([p.clawVersion]),
+      JSON.stringify(claims),
+      JSON.stringify(evidence),
+      p.verifiedAt ?? p.createdAt,
+    );
+  }
+}
 
 const getPostOrThrow = (postId: string) => {
   const post = getPostById(postId);
@@ -97,14 +141,87 @@ const getPostOrThrow = (postId: string) => {
   return post;
 };
 
-export const listRawPosts = () => rawPosts;
-export const listJobs = () => jobs.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-export const listReports = () => reports.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+export const listRawPosts = (): RawPost[] =>
+  db
+    .prepare(
+      "SELECT id, source, source_url as sourceUrl, title, content, fetched_at as fetchedAt FROM raw_posts ORDER BY fetched_at DESC",
+    )
+    .all() as RawPost[];
 
-export const getLatestReportByPostId = (postId: string) =>
-  reports
-    .filter((r) => r.postId === postId)
-    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))[0];
+export const listJobs = (): VerifyJob[] =>
+  db
+    .prepare(
+      "SELECT id, post_id as postId, status, created_at as createdAt, updated_at as updatedAt, error FROM jobs ORDER BY created_at DESC",
+    )
+    .all() as VerifyJob[];
+
+export const listReports = (): VerificationReport[] => {
+  const rows = db
+    .prepare(
+      "SELECT id, post_id as postId, status, trust_score as trustScore, summary, risks_json as risksJson, versions_json as versionsJson, claims_json as claimsJson, evidence_json as evidenceJson, created_at as createdAt FROM reports ORDER BY created_at DESC",
+    )
+    .all() as Array<{
+    id: string;
+    postId: string;
+    status: VerificationStatus;
+    trustScore: number;
+    summary: string;
+    risksJson: string;
+    versionsJson: string;
+    claimsJson: string;
+    evidenceJson: string;
+    createdAt: string;
+  }>;
+
+  return rows.map((r) => ({
+    id: r.id,
+    postId: r.postId,
+    status: r.status,
+    trustScore: r.trustScore,
+    summary: r.summary,
+    risks: JSON.parse(r.risksJson),
+    applicableVersions: JSON.parse(r.versionsJson),
+    claims: JSON.parse(r.claimsJson),
+    evidence: JSON.parse(r.evidenceJson),
+    createdAt: r.createdAt,
+  }));
+};
+
+export const getLatestReportByPostId = (postId: string) => {
+  const row = db
+    .prepare(
+      "SELECT id, post_id as postId, status, trust_score as trustScore, summary, risks_json as risksJson, versions_json as versionsJson, claims_json as claimsJson, evidence_json as evidenceJson, created_at as createdAt FROM reports WHERE post_id = ? ORDER BY created_at DESC LIMIT 1",
+    )
+    .get(postId) as
+    | {
+        id: string;
+        postId: string;
+        status: VerificationStatus;
+        trustScore: number;
+        summary: string;
+        risksJson: string;
+        versionsJson: string;
+        claimsJson: string;
+        evidenceJson: string;
+        createdAt: string;
+      }
+    | undefined;
+
+  if (!row) return undefined;
+
+  return {
+    id: row.id,
+    postId: row.postId,
+    status: row.status,
+    trustScore: row.trustScore,
+    summary: row.summary,
+    risks: JSON.parse(row.risksJson),
+    applicableVersions: JSON.parse(row.versionsJson),
+    claims: JSON.parse(row.claimsJson),
+    evidence: JSON.parse(row.evidenceJson),
+    createdAt: row.createdAt,
+  } satisfies VerificationReport;
+};
 
 export const enqueueVerifyJob = (postId: string) => {
   getPostOrThrow(postId);
@@ -115,16 +232,26 @@ export const enqueueVerifyJob = (postId: string) => {
     createdAt: now(),
     updatedAt: now(),
   };
-  jobs.unshift(job);
+  db.prepare(
+    "INSERT INTO jobs (id, post_id, status, created_at, updated_at, error) VALUES (?, ?, ?, ?, ?, NULL)",
+  ).run(job.id, job.postId, job.status, job.createdAt, job.updatedAt);
   return job;
 };
 
 export const runVerifyJob = (jobId: string) => {
-  const job = jobs.find((j) => j.id === jobId);
+  const job = db
+    .prepare(
+      "SELECT id, post_id as postId, status, created_at as createdAt, updated_at as updatedAt, error FROM jobs WHERE id = ?",
+    )
+    .get(jobId) as VerifyJob | undefined;
+
   if (!job) throw new Error("job not found");
 
-  job.status = "running";
-  job.updatedAt = now();
+  db.prepare("UPDATE jobs SET status = ?, updated_at = ? WHERE id = ?").run(
+    "running",
+    now(),
+    jobId,
+  );
 
   try {
     const post = getPostOrThrow(job.postId);
@@ -169,14 +296,41 @@ export const runVerifyJob = (jobId: string) => {
       createdAt: now(),
     };
 
-    reports.unshift(report);
-    job.status = "done";
-    job.updatedAt = now();
-    return { job, report };
+    db.prepare(
+      "INSERT INTO reports (id, post_id, status, trust_score, summary, risks_json, versions_json, claims_json, evidence_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    ).run(
+      report.id,
+      report.postId,
+      report.status,
+      report.trustScore,
+      report.summary,
+      JSON.stringify(report.risks),
+      JSON.stringify(report.applicableVersions),
+      JSON.stringify(report.claims),
+      JSON.stringify(report.evidence),
+      report.createdAt,
+    );
+
+    db.prepare("UPDATE jobs SET status = ?, updated_at = ?, error = NULL WHERE id = ?").run(
+      "done",
+      now(),
+      jobId,
+    );
+
+    const doneJob = db
+      .prepare(
+        "SELECT id, post_id as postId, status, created_at as createdAt, updated_at as updatedAt, error FROM jobs WHERE id = ?",
+      )
+      .get(jobId) as VerifyJob;
+
+    return { job: doneJob, report };
   } catch (error) {
-    job.status = "failed";
-    job.error = error instanceof Error ? error.message : "unknown error";
-    job.updatedAt = now();
+    db.prepare("UPDATE jobs SET status = ?, updated_at = ?, error = ? WHERE id = ?").run(
+      "failed",
+      now(),
+      error instanceof Error ? error.message : "unknown error",
+      jobId,
+    );
     throw error;
   }
 };
@@ -196,6 +350,10 @@ export const ingestRawPost = (input: {
     content: input.content,
     fetchedAt: now(),
   };
-  rawPosts.unshift(raw);
+
+  db.prepare(
+    "INSERT INTO raw_posts (id, source, source_url, title, content, fetched_at) VALUES (?, ?, ?, ?, ?, ?)",
+  ).run(raw.id, raw.source, raw.sourceUrl, raw.title, raw.content, raw.fetchedAt);
+
   return raw;
 };

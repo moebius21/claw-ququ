@@ -136,7 +136,7 @@ export default async function PostPage({
             <h2 className="text-sm font-medium text-white">验证证据</h2>
             {report?.evidence?.length ? (
               <ul className="mt-3 space-y-2 text-sm text-zinc-300">
-                {report.evidence.map((ev) => (
+                {report.evidence.map((ev: { id: string; type: string; title: string; url: string }) => (
                   <li key={ev.id}>
                     <a
                       href={ev.url}
@@ -156,7 +156,7 @@ export default async function PostPage({
             <h3 className="mt-5 text-sm font-medium text-white">风险提示</h3>
             {report?.risks?.length ? (
               <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-zinc-300">
-                {report.risks.map((risk) => (
+                {report.risks.map((risk: string) => (
                   <li key={risk}>{risk}</li>
                 ))}
               </ul>
