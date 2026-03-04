@@ -100,6 +100,12 @@ export default async function Home({
               智能搜索
             </Link>
             <Link
+              href="/assessment"
+              className="inline-flex rounded-lg border border-violet-400/25 bg-violet-500/10 px-3 py-1.5 text-xs text-violet-100 hover:bg-violet-500/20"
+            >
+              关系角色测评
+            </Link>
+            <Link
               href="/ops"
               className="inline-flex rounded-lg border border-white/15 bg-white/10 px-3 py-1.5 text-xs text-zinc-100 hover:bg-white/15"
             >
