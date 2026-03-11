@@ -18,6 +18,7 @@ Claw蛐蛐聚合 OpenClaw 相关经验内容（踩坑、配置、集成、安全
 - Ops 编排控制台（导入、草稿编辑、发布、复核任务执行）
 - 智能搜索入口：先搜站内，再抓取外部内容并入库复核（V1）
 - SQLite 持久化
+- 小红书单 Agent 内容流水线案例页（`/ops/xiaohongshu`）
 
 ## 本地开发
 
@@ -27,6 +28,21 @@ npm run dev
 ```
 
 打开：<http://localhost:3000>
+
+## 小红书单 Agent 案例
+
+运行项目后，打开：
+
+- `http://localhost:3000/ops/xiaohongshu`
+
+你可以输入关键词、选择“热点追踪/竞品分析”、设置生成篇数，然后触发一次单 Agent pipeline：
+
+- collect
+- analyze
+- draft
+- package
+
+案例说明文档见：`docs/xiaohongshu-single-agent.md`
 
 ## 常用命令
 

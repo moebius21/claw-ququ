@@ -64,9 +64,14 @@ export default async function OpsPage({
       <main className="mx-auto w-full max-w-5xl px-6 py-12">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold">Claw蛐蛐 · 编排控制台</h1>
-          <Link href="/" className="text-sm text-sky-200 hover:underline">
-            返回首页
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/ops/xiaohongshu" className="text-sm text-emerald-200 hover:underline">
+              单 Agent 小红书案例
+            </Link>
+            <Link href="/" className="text-sm text-sky-200 hover:underline">
+              返回首页
+            </Link>
+          </div>
         </div>
 
         <section className="mt-4 rounded-xl border border-white/10 bg-white/5 p-4">
